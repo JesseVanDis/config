@@ -92,9 +92,10 @@
 (setq initial-major-mode 'todo-list-mode)                                              ; setting: set scratch-mode to the todo-list-mode
 (add-to-list 'auto-mode-alist '("\\.todo\\'" . todo-list-mode))                        ; setting: open .todo     files in TODO mode
 (add-to-list 'auto-mode-alist '("\\.locatext\\'" . nxml-mode))                         ; setting: open .locatext files in XML mode
+(setq x-select-enable-primary nil)                                                     ; setting: copy/paste over system clipboard (1/2)
+(setq x-select-enable-clipboard t)                                                     ; setting: copy/paste over system clipboard (2/2)
 
 (use-package f :ensure t)                                                              ; plugin: easy filename manipulation
-(use-package simpleclip :config (simpleclip-mode 1))                                   ; plugin: easy access to system clipboard
 (use-package nyan-mode :config (nyan-mode 1))                                          ; plugin: nyan cat
 (use-package autopair :ensure t :config (autopair-global-mode))                        ; plugin: add '}' after typing '{'
 (use-package iflipb :ensure t :config                                                  ; plugin: easy buffer swap with Ctrl+(Shift)+Tab (1/3)
