@@ -11,6 +11,7 @@
 
 
 (setq gc-cons-threshold 64000000) (add-hook 'after-init-hook #'(lambda () (setq gc-cons-threshold 800000))) ; Hack: Faster startup times
+(setq package-check-signature nil)                                                     ; init: to avoid signature verification error
 (require 'package)                                                                     ; init: load packages only once
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes/")                             ; init: Add load paths (2/2)
   (add-to-list 'load-path "~/.emacs.d/loadpath/")                                      ; init:   Add load paths (2/2)
@@ -58,11 +59,21 @@
 
 ; =======================================================
 
-(require 'spacemacs-light-theme) (load-theme 'spacemacs-light)                         ; theme: spacemacs-light
-
 (defvar keycomb-c-s-tab                                                                ; var: key combination of Ctrl+Shift+Tab (1/2)
   (if (featurep 'xemacs) (kbd "<C-iso-left-tab>") (kbd "<C-S-iso-lefttab>")))          ; var:   key combination of Ctrl+Shift+Tab (2/2)
 
+(use-package f :ensure t)                                                              ; plugin: easy filename manipulation
+(use-package nyan-mode :ensure t :config (nyan-mode 1))                                ; plugin: nyan cat
+;;(use-package undo-tree :ensure t)                                                    ; plugin: global undo tree
+(use-package autopair :ensure t :config (autopair-global-mode))                        ; plugin: add '}' after typing '{'
+(use-package iflipb :ensure t :config                                                  ; plugin: easy buffer swap with Ctrl+(Shift)+Tab (1/3)
+  (global-set-key (kbd "<C-tab>") 'iflipb-next-buffer)                                 ; plugin:   easy buffer swap with Ctrl+(Shift)+Tab (2/3)
+  (global-set-key keycomb-c-s-tab 'iflipb-previous-buffer))                            ; plugin:   easy buffer swap with Ctrl+(Shift)+Tab (3/3)
+(use-package modern-cpp-font-lock :ensure t)                                           ; plugin: C++ highlighting (1/2)
+  (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode)                                ; plugin:   C++ highlighting (2/2)
+
+
+(require 'spacemacs-light-theme) (load-theme 'spacemacs-light)                         ; setting: enable theme
 (setq backup-directory-alist `(("." . "~/.saves")))                                    ; setting: put backup files in another dir (1/2)
   (setq backup-directory-alist `(("." . ,(concat user-emacs-directory "backups"))))    ; setting:   put backup files in another dir (2/2)
 (setq create-lockfiles nil)                                                            ; setting: stop creating lock files
@@ -80,9 +91,9 @@
   (setq mouse-wheel-progressive-speed nil)                                             ; setting:   fix scrolling (5/5): don't accelerate scrolling
   (setq mouse-wheel-follow-mouse 't)                                                   ; setting: scroll window under mouse
 (savehist-mode 1)                                                                      ; setting: save M-x history  ( the command history... )
-(global-undo-tree-mode)                                                                ; setting: save undo history (1/3)
-  (setq undo-tree-auto-save-history t)                                                 ; setting:   save undo history (2/3)
-  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo")))                ; setting:   save undo history (3/3)
+;;(global-undo-tree-mode)                                                              ; setting: save undo history (1/3)
+;;  (setq undo-tree-auto-save-history t)                                               ; setting:   save undo history (2/3)
+;;  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo")))              ; setting:   save undo history (3/3)
 ;;(horizontal-scroll-bar-mode 1)                                                       ; setting: horizontal scrollbar
 (setq-default tab-width 4) (setq js-indent-level 4)                                    ; setting: set tab spacing to 4 spaces
 (global-hl-line-mode 1)                                                                ; setting: highlight line
@@ -94,15 +105,6 @@
 (add-to-list 'auto-mode-alist '("\\.locatext\\'" . nxml-mode))                         ; setting: open .locatext files in XML mode
 (setq x-select-enable-primary nil)                                                     ; setting: copy/paste over system clipboard (1/2)
 (setq x-select-enable-clipboard t)                                                     ; setting: copy/paste over system clipboard (2/2)
-
-(use-package f :ensure t)                                                              ; plugin: easy filename manipulation
-(use-package nyan-mode :config (nyan-mode 1))                                          ; plugin: nyan cat
-(use-package autopair :ensure t :config (autopair-global-mode))                        ; plugin: add '}' after typing '{'
-(use-package iflipb :ensure t :config                                                  ; plugin: easy buffer swap with Ctrl+(Shift)+Tab (1/3)
-  (global-set-key (kbd "<C-tab>") 'iflipb-next-buffer)                                 ; plugin:   easy buffer swap with Ctrl+(Shift)+Tab (2/3)
-  (global-set-key keycomb-c-s-tab 'iflipb-previous-buffer))                            ; plugin:   easy buffer swap with Ctrl+(Shift)+Tab (3/3)
-(use-package modern-cpp-font-lock :ensure t)                                           ; plugin: C++ highlighting (1/2)
-  (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode)                                ; plugin:   C++ highlighting (2/2)
 
 (define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)                   ; Shortcut: Esc to cancel any minibuffer (1/5)
   (define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)              ; Shortcut:   Esc to cancel any minibuffer (2/5)
@@ -187,5 +189,4 @@
 	("\\([/][/].*\\)" 1 efont-todo-f4 prepend)
 	("\\([;][;].*\\)" 1 efont-todo-f4 prepend)
 )))
-
 
