@@ -12,6 +12,7 @@ echo "gnuLtsPackage to be checked: ${gnutlsPackageName}"
 !dpkg -s libtiff-dev 2>/dev/null >/dev/null || sudo apt-get install libtiff-dev
 !dpkg -s libgif-dev 2>/dev/null >/dev/null || sudo apt-get install libgif-dev
 !dpkg -s lib32ncurses5-dev 2>/dev/null >/dev/null || sudo apt-get install lib32ncurses5-dev
+!dpkg -s libxml2-dev 2>/dev/null >/dev/null || sudo apt-get install libxml2-dev
 ./configure
 echo "did everything go well ? if not close the window"
 echo "press [ENTER] to continue"
