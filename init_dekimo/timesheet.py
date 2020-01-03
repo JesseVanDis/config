@@ -115,30 +115,28 @@ def getUserAndPass():
             username = arg[arg.find("=")+1:]
         if arg.count("pass=") > 0:
             password = arg[arg.find("=")+1:]
-
+            
     if len(username) == 0:
         try:
             f = open("usr")
             username = str(f.read())
+            f.close()
         except IOError:
             username = input("Please enter your username:\n")
             fw = open("usr", "w")
             fw.write(username)
             fw.close()
-        finally:
-            f.close()
 
     if len(password) == 0:
         try:
             f = open("pass")
             password = str(f.read())
+            f.close()
         except IOError:
             password = input("Please enter your password:\n")
             fw = open("pass", "w")
             fw.write(password)
             fw.close()
-        finally:
-            f.close()
 
     return (username, password)
 
