@@ -15,6 +15,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.expected_conditions import presence_of_element_located, text_to_be_present_in_element
 from selenium.webdriver.firefox.options import Options
 
+verbose = sys.argv.count("v") or sys.argv.count("-v")
+
+def printIfVerbose(text):
+    if verbose:
+        print(text)
+
 def getTagValue(tagString, index):
     if index > 0:
         pre = tagString[tagString.find(">")+1:]
@@ -25,6 +31,15 @@ def getTagValue(tagString, index):
 
 def isMainPageFinished(pageHtml):
     return pageHtml.count("</tr></tbody></table>") > 0
+
+def waitUntilMainPageIsFinished(driver):
+    isPageFinished = False
+    for x in range(0, 1000):
+        time.sleep(0.1)
+        isPageFinished = isMainPageFinished(str(driver.page_source))
+        if isPageFinished:
+            break
+    return isPageFinished
 
 def findCurrentLogs(mainPageHtml):
     def getDays(rowString):
@@ -106,6 +121,121 @@ def printActivities(activities):
             printWithBarEnd(line, maxLineLength)
         printWithBarEnd("|", maxLineLength, "_")
 
+def showAllActivityTypes():
+    options = Options()
+    printIfVerbose("0/4 opening page...")
+    options.headless = True
+    with webdriver.Firefox(options=options) as driver:
+        wait = WebDriverWait(driver, 10)
+        driver.get(getWebLoggerUrl())
+        first_result = wait.until(presence_of_element_located((By.ID, "weeklyoverviewtable")))
+        waitUntilMainPageIsFinished(driver)
+
+        printIfVerbose("1/4 reading current layout...")
+        # TODO, move page to the correct week
+        activities = findCurrentLogs(str(driver.page_source))
+
+        printIfVerbose("2/4 checking button...")
+
+        columnActivitiesSize = 0
+        for v in activities[0][1]:
+            if len(v[0]) > 0:
+                columnActivitiesSize = columnActivitiesSize + 1
+
+        buttonXpath = '//*[@id="weeklyoverviewtable"]/tbody/tr[' + str(columnActivitiesSize + 2) + ']/td[' + str(1) + ']'
+        button = driver.find_element_by_xpath(buttonXpath)
+        button.click()
+
+        printIfVerbose("3/4 opening submission page...")
+
+        wait.until(presence_of_element_located((By.ID, "submitbuttonelement")))
+
+        printIfVerbose("4/4 reading submission page...")
+
+        allLines = str(driver.page_source).splitlines()
+        relevantLines = []
+        startSeen = False
+        for x in allLines:
+            if x.count('id="projectnameelement"') > 0:
+                startSeen = True
+            if x.count('id="projectnameelement_chzn"') > 0:
+                break
+            if startSeen:
+                if x.count("<option ") == 0 and x.count("</option>") == 0 and len(x.strip()) > 0:
+                    relevantLines.append(x.lstrip())
+
+        for x in relevantLines:
+            print(x)
+
+
+def enterActivity(day, month, year, activity, duration, location):
+    print("entering activity '" + activity + "' on '" + str(day) + "/" + str(month) + "/" + str(year) + "' for '" + str(duration) + "' days")
+    options = Options()
+    printIfVerbose("0/5 opening page...")
+    options.headless = True
+    with webdriver.Firefox(options=options) as driver:
+        wait = WebDriverWait(driver, 10)
+        driver.get(getWebLoggerUrl())
+        first_result = wait.until(presence_of_element_located((By.ID, "weeklyoverviewtable")))
+        waitUntilMainPageIsFinished(driver)
+
+        printIfVerbose("1/5 reading current layout...")
+        # TODO, move page to the correct week
+        activities = findCurrentLogs(str(driver.page_source))
+
+        printIfVerbose("2/5 checking button...")
+
+        stringToMatch = (("0" + str(day))[:2]) + "/" + (("0" + str(month))[:2]) + "/" + str(year)
+        column = -1
+        for x in range(0, len(activities)):
+            dayName = activities[x][0][0]
+            dayDate = activities[x][0][1]
+            if dayDate == stringToMatch:
+                column = x
+                break
+
+        if column == -1:
+            print("Cannot find column for date '" + stringToMatch + "'")
+            return
+
+        columnActivitiesSize = 0
+        for v in activities[column][1]:
+            if len(v[0]) > 0:
+                columnActivitiesSize = columnActivitiesSize + 1
+
+        buttonXpath = '//*[@id="weeklyoverviewtable"]/tbody/tr[' + str(columnActivitiesSize + 2) + ']/td[' + str(column+1) + ']'
+        button = driver.find_element_by_xpath(buttonXpath)
+        button.click()
+
+        printIfVerbose("3/5 opening submission page...")
+
+        wait.until(presence_of_element_located((By.ID, "submitbuttonelement")))
+
+        printIfVerbose("4/5 filling info...")
+
+        dropdown = driver.find_element_by_xpath('//*[@id="projectnameelement_chzn"]')
+        dropdown.click()
+        time.sleep(0.3)
+        textbox = driver.find_element_by_xpath('//*[@id="projectnameelement_chzn"]/div/div/input')
+        textbox.send_keys(activity)
+        textbox.send_keys(Keys.RETURN)
+
+        locationElement = driver.find_element_by_xpath('//*[@id="locationelement"]')
+        locationElement.clear()
+        locationElement.send_keys(location)
+
+        durationElement = driver.find_element_by_xpath('//*[@id="durationelement"]')
+        durationElement.clear()
+        durationElement.send_keys(str(duration).replace(",", "."))
+
+        printIfVerbose("5/5 submitting...")
+
+        submitElement = driver.find_element_by_xpath('//*[@id="submitbuttonelement"]')
+        time.sleep(0.5)
+        submitElement.click()
+
+        printIfVerbose("Done!")
+
 def getUserAndPass():
     username = ""
     password = ""
@@ -115,7 +245,7 @@ def getUserAndPass():
             username = arg[arg.find("=")+1:]
         if arg.count("pass=") > 0:
             password = arg[arg.find("=")+1:]
-            
+
     if len(username) == 0:
         try:
             f = open("usr")
@@ -144,27 +274,50 @@ def getWebLoggerUrl():
     userAndPass = getUserAndPass()
     return "https://" + userAndPass[0] + ":" + userAndPass[1] + "@router.dekimo.be/WebLogger"
 
-def printActivitiesOfThisWeek():
+def main_printActivitiesOfThisWeek():
     options = Options()
     options.headless = True
     with webdriver.Firefox(options=options) as driver:
         wait = WebDriverWait(driver, 10)
         driver.get(getWebLoggerUrl())
         first_result = wait.until(presence_of_element_located((By.ID, "weeklyoverviewtable")))
-
-        isPageFinished = False
-        for x in range(0, 1000):
-            time.sleep(0.1)
-            isPageFinished = isMainPageFinished(str(driver.page_source))
-            if isPageFinished:
-                break
+        waitUntilMainPageIsFinished(driver)
 
     #    print(driver.page_source)
         activities = findCurrentLogs(str(driver.page_source))
         printActivities(activities)
 
+def main_enterActivity():
+    date = [1, 1, 2000]
+    activity = ""
+    duration = 1.0
+    location = "Delft"
+    for arg in sys.argv:
+        if arg.count("date=") > 0:
+            dateStr = arg[arg.find("=")+1:]
+            split = dateStr.split(" ")
+            for x in range(0, 3):
+                date[x] = int(split[x])
+        if arg.count("activity=") > 0:
+            activity = arg[arg.find("=")+1:]
+        if arg.count("duration=") > 0:
+            duration = float(arg[arg.find("=")+1:])
+        if arg.count("location=") > 0:
+            location = arg[arg.find("=")+1:]
+
+    enterActivity(date[0], date[1], date[2], activity, duration, location)
+
 if sys.argv.count("showThisWeek"):
-    printActivitiesOfThisWeek()
+    main_printActivitiesOfThisWeek()
+
+if sys.argv.count("enterActivity"):
+    main_enterActivity()
+
+if sys.argv.count("showAllActivityTypes"):
+    showAllActivityTypes()
+
+
+#date="03 01 2020" activity=DED_SBI_IDLE duration=1.0
 
 #getUserAndPass()
 
