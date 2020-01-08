@@ -177,7 +177,6 @@ elif [ "$com" == "te" ]; then
 	if [ -z "${ar2}" ]; then
 		dateStr=$(date "+%-d %-m %Y")
 		dateArg="date=${dateStr}"
-		echo ${dateArg}
 		python3 ./timesheet.py enterActivity v "date=${dateStr}" "activity=${ar}" "duration=1.0"
 
 	elif [ -z "${ar3}" ]; then
