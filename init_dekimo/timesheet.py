@@ -8,6 +8,7 @@
 
 import time
 import sys
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -98,6 +99,9 @@ def printActivities(activities):
     if len(activities) > 0:
         lines = []
         maxLineLength = 0
+        defaultColor = '\033[00m' # https://misc.flogisoft.com/bash/tip_colors_and_formatting
+        todayDay = datetime.today().strftime("%d")
+        todayMonth = datetime.today().strftime("%m")
         for dayData in activities:
             dayName = dayData[0][0]
             dayDate = dayData[0][1]
@@ -105,21 +109,33 @@ def printActivities(activities):
             dateMonth = dayDate[dayDate.find("/")+1:]
             dateMonth = dateMonth[:dateMonth.find("/")]
             activitiesOfDay = dayData[1]
+            isToday = todayDay == dateDay and todayMonth == dateMonth
+
+            color = defaultColor
+            if dayName == "Saturday" or dayName == "Sunday":
+                color = '\033[90m'
+
+            if isToday:
+                color = '\033[04m'
 
             activitiesString = ""
             for activity in activitiesOfDay:
                 if len(activity[0]) > 0:
                     activitiesString = activitiesString + "{:<24}".format(activity[0] + "(" + activity[2] + ")")
-            line = "| {:<20}".format(dateDay + "/" + dateMonth + " " + dayName) + ": " + activitiesString
+            if isToday:
+                line = "| " + color + "{:<25}".format(dateDay + "/" + dateMonth + " " + dayName + defaultColor) + ": " + activitiesString
+            else:	
+                line = "| " + color + "{:<20}".format(dateDay + "/" + dateMonth + " " + dayName) + ": " + activitiesString + defaultColor
             maxLineLength = max(len(line), maxLineLength)
+
             lines.append(line)
 
         maxLineLength = maxLineLength + 2
-        printWithBarEnd(" ______" + str(activities[0][0][1]) + " to " + str(activities[len(activities)-1][0][1]), maxLineLength, "_", " ")
-        printWithBarEnd("| ", maxLineLength)
+        printWithBarEnd( defaultColor + defaultColor + " ______" + str(activities[0][0][1]) + " to " + str(activities[len(activities)-1][0][1]), maxLineLength, "_", " ")
+        printWithBarEnd( defaultColor + defaultColor + "| ", maxLineLength)
         for line in lines:
             printWithBarEnd(line, maxLineLength)
-        printWithBarEnd("|", maxLineLength, "_")
+        printWithBarEnd(defaultColor + defaultColor + "|", maxLineLength, "_")
 
 def showAllActivityTypes():
     options = Options()
