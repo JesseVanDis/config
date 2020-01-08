@@ -17,6 +17,7 @@ if [ "$1" == "currentpath" ]; then
 	com=$3
 	ar=$4
 	ar2=$5
+	ar3=$6
 	if [ "$3" == "showallcommands" ]; then
 		OS=ShowAllCommands
 	fi
@@ -25,6 +26,11 @@ else
 	com=$1
 	ar=$2
 	ar2=$3
+	ar3=$4
+fi
+
+if [[ "$com" == "-"* ]]; then
+	com=${com:1}
 fi
 
 if [ ! -d $DataFolder ]; then
@@ -88,13 +94,15 @@ if [ $# -eq 0 ] || [ "$OS" == "ShowAllCommands" ]; then
 
 	if [ "$OS" == "Windows" ]; then
 		echo -e " ${HEADERCOLOR}Menu:${NC}"
-		echo -e "${P} -${NC} h        ${G}( Help )${NC}"		
+		echo -e "${P} -${NC}h        ${G}( Help )${NC}"
 	else
-		echo -e " ${HEADERCOLOR}Check:${NC}"
-		echo -e "${P} -${NC} hc       ${G}( [PC] Check houroverview of current week )${NC}"		
+		echo -e " ${HEADERCOLOR}Workhours:${NC}"
+		echo -e "${P} -${NC}tc       ${G}( [Hour Tracking] Check houroverview of current week )${NC}"
+		echo -e "${P} -${NC}te       ${G}( [Hour Tracking] log activity for today: '-te DED_SBI_IDLE 1.0' )${NC}"
+		echo -e "${P} -${NC}ta       ${G}( [Hour Tracking] Show all activity types )${NC}"		
 		echo -e ""
 		echo -e " ${HEADERCOLOR}other:${NC}"
-		echo -e "${P} -${NC} h        ${G}( help )${NC}"		
+		echo -e "${P} -${NC}h        ${G}( help )${NC}"		
 	fi
 	
 	echo ""
@@ -128,23 +136,22 @@ fi
 	
 Self="${SELF_PATH} currentpath ${CURRENTDIR}"
 
-export PATH="$BlenderPath:$PATH"
-export PATH="$CURRENTDIR:$PATH"
-export PATH="$CURRENTDIR/tools:$PATH"
-if [ "$OS" == "Windows" ]; then
-	export PATH="$CURRENTDIR/tools/windows:$PATH"
-	export PATH="$CURRENTDIR/tools/blender/blender:$PATH"
-	export PATH="$CURRENTDIR/tools/msys/msys32/mingw32/bin:$PATH"
-	export PATH="$CURRENTDIR/tools/msys/msys32/mingw32/i686-w64-mingw32/bin:$PATH"	
-	export PATH="$CURRENTDIR/tools/msys/msys32/usr/bin:$PATH"	
-	export PATH="$CURRENTDIR/tools/imageMagick:$PATH"	
-	export PATH="$CURRENTDIR/tools/python2:$PATH"	
+helpArg=""
+if [ "$com" == "h" ]; then
+	if [ ! -z "$ar" ]; then
+		echo ""
+		echo -e "help page for option '\e[32m${ar}${NC}':"
+		helpArg=${ar}
+	else
+		echo "HELP PAGE:"
+		echo " usage: "
+		echo "  - execute this without any arguments to see all the available options"
+		echo ""
+		echo " option details: "
+		echo "  - run '-h [option]' to see the option help page. for example: '-h te'"
+		echo ""
+	fi
 fi
-
-if [ -d $JavaPath ]; then
-	export PATH="$JavaPath:$PATH"
-fi
-
 if [ "$com" == "fetch_hoursheet_pythonscript" ]; then
 	if [ ! -d ./init_dekimo ]; then
 		mkdir ./init_dekimo
@@ -155,7 +162,7 @@ if [ "$com" == "fetch_hoursheet_pythonscript" ]; then
 	fi
 	cd ../
 
-elif [ "$com" == "hc" ]; then
+elif [ "$com" == "tc" ]; then
 	$Self fetch_hoursheet_pythonscript
 	cd ./init_dekimo
 	echo ""
@@ -163,12 +170,43 @@ elif [ "$com" == "hc" ]; then
 	echo ""
 	cd ../
 
-elif [ "$com" == "h" ]; then
-	echo "HELP PAGE: (for now just showing some tips)"
-	echo " tips: "
-	echo "  - open the git bash and enter './commands.sh [menu name]' where [menu name] is the menu name you like to be executed"
-	echo "  - type 'sa' to show all commands. It is not gauranteed that all of them work since they are usually made linux."
+elif [ "$com" == "te" ]; then
+	$Self fetch_hoursheet_pythonscript
+	cd ./init_dekimo
 
+	if [ -z "${ar2}" ]; then
+		dateStr=$(date "+%-d %-m %Y")
+		dateArg="date=${dateStr}"
+		echo ${dateArg}
+		python3 ./timesheet.py enterActivity v "date=${dateStr}" "activity=${ar}" "duration=1.0"
+
+	elif [ -z "${ar3}" ]; then
+		dateStr=$(date "+%-d %-m %Y")
+		python3 ./timesheet.py enterActivity v "date=${dateStr}" "activity=${ar}" "duration=${ar2}"
+	else
+		python3 ./timesheet.py enterActivity v "date=${ar}" "activity=${ar2}" "duration=${ar3}"
+	fi
+	cd ../
+
+elif [ "${helpArg}" == "te" ]; then
+	echo "there are 3 ways to enter an activity, examples of the are as follows:"
+	echo "keep in mind that the order matters"
+	echo "  -te DED_SBI_IDLE                   ( log activity today with duration 1.0d )"
+	echo "  -te DED_SBI_IDLE 0.5               ( log activity today with duration 0.5d )"
+	echo "  -te \"03 01 2020\" DED_SBI_IDLE 1.0  ( only works for current week days so far )"
+	echo ""
+
+
+elif [ "$com" == "ta" ]; then
+	$Self fetch_hoursheet_pythonscript
+	cd ./init_dekimo
+	echo ""	
+	python3 ./timesheet.py showAllActivityTypes
+	echo ""
+	cd ../
+
+elif [ ! -z "${helpArg}" ]; then
+	echo "No help page available for '${helpArg}' yet"
 else
 	NeedInputToExit=0
 	exit
