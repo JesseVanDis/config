@@ -9,15 +9,39 @@
 
 echo "Prevent system going to standby? y/n"
 read readPreventStandby
+echo " - '${readPreventStandby}'"
+echo ""
+
+echo "install graphics driver? y/n"
+read readInstallGraphicsDriver
+echo " - '${readInstallGraphicsDriver}'"
+echo ""
+
+echo "install KCB Keyboard driver? y/n"
+read readKCB
+echo " - '${readKCB}'"
+echo ""
+
+echo "Install XMacro? y/n"
+read readXMacro
+echo " - '${readXMacro}'"
+echo ""
+
+echo "Install golang mkt server? y/n"
+read readMktServer
+echo " - '${readMktServer}'"
+echo ""
+
+
+
 if [ "$readPreventStandby" == "y" ]; then
+	#Prevent standby
 	echo ":: prevent from going standby ::"
 	sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 	echo ""
 fi
 
 
-echo "install graphics driver? y/n"
-read readInstallGraphicsDriver
 if [ "$readInstallGraphicsDriver" == "y" ]; then
 	#graphic driver
 	echo ":: graphics driver ::"
@@ -29,8 +53,6 @@ if [ "$readInstallGraphicsDriver" == "y" ]; then
 	echo ""
 fi
 
-echo "install KCB Keyboard driver? y/n"
-read readKCB
 if [ "$readKCB" == "y" ]; then
 	# KCB
 	echo ":: corsair keyboard colors ::"
@@ -46,8 +68,6 @@ if [ "$readKCB" == "y" ]; then
 	echo ""
 fi
 
-echo "Install XMacro? y/n"
-read readXMacro
 if [ "$readXMacro" == "y" ]; then
 	# xmacro
 	echo ":: xmacro ::"
@@ -59,8 +79,6 @@ if [ "$readXMacro" == "y" ]; then
 	echo ""
 fi
 
-echo "Install golang mkt server? y/n"
-read readMktServer
 if [ "$readMktServer" == "y" ]; then
 	# mkt_server
 	echo ":: golang mkt server ::"
