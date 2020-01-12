@@ -56,7 +56,8 @@ fi
 if [ "$readKCB" == "y" ]; then
 	# KCB
 	echo ":: corsair keyboard colors ::"
-	sudo apt-get install git build-essential cmake libudev-dev qt5-default zlib1g-dev libappindicator-dev libpulse-dev libquazip5-dev
+	sudo apt-get -y install git build-essential cmake libudev-dev qt5-default zlib1g-dev libappindicator-dev libpulse-dev libquazip5-dev
+	sudo apt-get -y install build-essential cmake libudev-dev qt5-default zlib1g-dev libappindicator-dev libpulse-dev libquazip5-dev libqt5x11extras5-dev libxcb-screensaver0-dev libxcb-ewmh-dev libxcb1-dev qttools5-dev
 	mkdir ~/kcb
 	cd ~/kcb
 	git clone https://github.com/ckb-next/ckb-next.git
