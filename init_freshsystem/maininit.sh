@@ -6,9 +6,15 @@
 # - buzzing audio: https://www.reddit.com/r/archlinux/comments/7vz8k6/since_recent_update_linux_puts_sound_to_sleep_on/
 #      ( read last part )
 
-# prevent from going standby
-echo ":: prevent from going standby ::"
-sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+echo "Prevent system going to standby? y/n"
+read readPreventStandby
+if [ "$readPreventStandby" == "y" ]; then
+	echo ":: prevent from going standby ::"
+	sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+	echo ""
+fi
+
 
 #graphic driver
 echo ":: graphics driver ::"
