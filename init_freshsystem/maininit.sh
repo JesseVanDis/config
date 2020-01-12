@@ -9,27 +9,27 @@
 
 echo "Prevent system going to standby? y/n"
 read readPreventStandby
-echo " - '${readPreventStandby}'"
+#echo " - '${readPreventStandby}'"
 echo ""
 
 echo "install graphics driver? y/n"
 read readInstallGraphicsDriver
-echo " - '${readInstallGraphicsDriver}'"
+#echo " - '${readInstallGraphicsDriver}'"
 echo ""
 
 echo "install KCB Keyboard driver? y/n"
 read readKCB
-echo " - '${readKCB}'"
+#echo " - '${readKCB}'"
 echo ""
 
 echo "Install XMacro? y/n"
 read readXMacro
-echo " - '${readXMacro}'"
+#echo " - '${readXMacro}'"
 echo ""
 
 echo "Install golang mkt server? y/n"
 read readMktServer
-echo " - '${readMktServer}'"
+#echo " - '${readMktServer}'"
 echo ""
 
 
