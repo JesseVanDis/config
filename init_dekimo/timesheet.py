@@ -186,6 +186,8 @@ def showAllActivityTypes():
 
 def enterActivity(day, month, year, activity, duration, location):
     print("entering activity '" + activity + "' on '" + str(day) + "/" + str(month) + "/" + str(year) + "' for '" + str(duration) + "' days")
+    dayStr = str(day) if len(str(day)) > 1 else (("0" + str(day))[:2])
+    monthStr = str(month) if len(str(month)) > 1 else (("0" + str(month))[:2])
     options = Options()
     printIfVerbose("0/5 opening page...")
     options.headless = True
@@ -201,7 +203,7 @@ def enterActivity(day, month, year, activity, duration, location):
 
         printIfVerbose("2/5 checking button...")
 
-        stringToMatch = (("0" + str(day))[:2]) + "/" + (("0" + str(month))[:2]) + "/" + str(year)
+        stringToMatch = dayStr + "/" + monthStr + "/" + str(year)
         column = -1
         for x in range(0, len(activities)):
             dayName = activities[x][0][0]
