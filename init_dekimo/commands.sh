@@ -168,6 +168,22 @@ if [ "$com" == "fetch_hoursheet_pythonscript" ]; then
 elif [ "$com" == "s" ]; then
 	sudo apt-get install python3-selenium
 
+	if [ ! -d ./init_dekimo ]; then
+		mkdir ./init_dekimo
+	fi
+	cd ./init_dekimo
+	if [ ! -f ./geckodriver ]; then
+		wget https://github.com/mozilla/geckodriver/releases/download/v0.26.0/geckodriver-v0.26.0-linux64.tar.gz
+		tar -zxvf ./geckodriver-v0.26.0-linux64.tar.gz
+		if [ -f "./geckodriver.log" ]; then
+			rm ./geckodriver.log
+		fi
+		rm ./geckodriver-v0.26.0-linux64.tar.gz
+		chmod +x ./geckodriver
+		sudo mv ./geckodriver /usr/local/bin/
+	fi
+	cd ../
+
 
 elif [ "$com" == "tc" ]; then
 	$Self fetch_hoursheet_pythonscript
