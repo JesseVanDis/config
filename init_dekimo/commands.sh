@@ -94,6 +94,7 @@ if [ $# -eq 0 ] || [ "$OS" == "ShowAllCommands" ]; then
 
 	if [ "$OS" == "Windows" ]; then
 		echo -e " ${HEADERCOLOR}Menu:${NC}"
+		echo -e "${P} -${NC}s        ${G}( Install dependencies )${NC}"
 		echo -e "${P} -${NC}h        ${G}( Help )${NC}"
 	else
 		echo -e " ${HEADERCOLOR}Workhours:${NC}"
@@ -161,6 +162,12 @@ if [ "$com" == "fetch_hoursheet_pythonscript" ]; then
 		wget https://raw.githubusercontent.com/JesseVanDis/config/master/init_dekimo/timesheet.py
 	fi
 	cd ../
+
+
+
+elif [ "$com" == "s" ]; then
+	sudo apt-get install python3-selenium
+
 
 elif [ "$com" == "tc" ]; then
 	$Self fetch_hoursheet_pythonscript
