@@ -270,7 +270,7 @@ def getUserAndPass():
             username = str(f.read())
             f.close()
         except IOError:
-            username = input("Please enter your username:\n")
+            username = input("Please enter your dekimo WebLogger username:\n")
             fw = open("usr", "w")
             fw.write(username)
             fw.close()
@@ -281,7 +281,7 @@ def getUserAndPass():
             password = str(f.read())
             f.close()
         except IOError:
-            password = input("Please enter your password:\n")
+            password = input("Please enter your dekimo WebLogger password:\n")
             fw = open("pass", "w")
             fw.write(password)
             fw.close()
