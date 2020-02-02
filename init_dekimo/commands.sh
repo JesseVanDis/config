@@ -193,13 +193,12 @@ elif [ "$com" == "tc" ]; then
 	echo ""
 	cd ../
 
-elif [ "$com" == "te" ]; then
+elif [ "$com" == "tt" ]; then # depricated
 	$Self fetch_hoursheet_pythonscript
 	cd ./init_dekimo
 
 	if [ -z "${ar2}" ]; then
 		dateStr=$(date "+%-d %-m %Y")
-		dateArg="date=${dateStr}"
 		python3 ./timesheet.py enterActivity v "date=${dateStr}" "activity=${ar}" "duration=1.0"
 
 	elif [ -z "${ar3}" ]; then
@@ -210,12 +209,54 @@ elif [ "$com" == "te" ]; then
 	fi
 	cd ../
 
+elif [ "$com" == "te" ]; then
+	#  -tt date="03 01 2020" task=DED_SBI_IDLE durationDays=1.0 place=Delft distanceKm=1"
+	#  -tt da="03 01 2020" ta=DED_SBI_IDLE du=1.0 pl=Delft km=1"
+	dateStr=$(date "+%-d %-m %Y")
+	taskStr="DED_SBI_IDLE"
+	durationDaysStr="1.0"
+	placeStr="Delft"
+	distanceKmStr="0"
+	verbose=false
+	
+	for arg in "$@"
+	do
+		if [[ "${arg}" == "da="* ]]; then dateStr="${arg:3}"; fi
+		if [[ "${arg}" == "date="* ]]; then dateStr="${arg:5}"; fi
+		if [[ "${arg}" == "ta="* ]]; then taskStr="${arg:3}"; fi
+		if [[ "${arg}" == "task="* ]]; then taskStr="${arg:5}"; fi
+		if [[ "${arg}" == "du="* ]]; then durationDaysStr="${arg:3}"; fi
+		if [[ "${arg}" == "durationDays="* ]]; then durationDaysStr="${arg:13}"; fi
+		if [[ "${arg}" == "pl="* ]]; then placeStr="${arg:3}"; fi
+		if [[ "${arg}" == "place="* ]]; then placeStr="${arg:6}"; fi
+		if [[ "${arg}" == "km="* ]]; then distanceKmStr="${arg:3}"; fi
+		if [[ "${arg}" == "distanceKm="* ]]; then distanceKmStr="${arg:11}"; fi
+		if [[ "${arg}" == "v" ]]; then verbose=true; fi
+	done
+
+	cd ./init_dekimo
+	if [ $verbose == true ]; then
+		echo "-- input --"
+		echo "date: ${dateStr}"
+		echo "task: ${taskStr}"
+		echo "duration: ${durationDaysStr}"
+		echo "place: ${placeStr}"
+		echo "distance: ${distanceKmStr}"
+		echo "-----------"
+		echo "starting running python script './init_dekimo/timesheet.py'..."
+		python3 ./timesheet.py enterActivity v "date=${dateStr}" "activity=${taskStr}" "duration=${durationDaysStr}" "location=${placeStr}" "distance=${distanceKmStr}"
+	else
+		python3 ./timesheet.py enterActivity "date=${dateStr}" "activity=${taskStr}" "duration=${durationDaysStr}" "location=${placeStr}" "distance=${distanceKmStr}"
+	fi
+
+
 elif [ "${helpArg}" == "te" ]; then
 	echo "there are 3 ways to enter an activity, examples of the are as follows:"
 	echo "keep in mind that the order matters"
 	echo "  -te DED_SBI_IDLE                   ( log activity today with duration 1.0d )"
 	echo "  -te DED_SBI_IDLE 0.5               ( log activity today with duration 0.5d )"
 	echo "  -te \"03 01 2020\" DED_SBI_IDLE 1.0  ( only works for current week days so far )"
+	echo "  -tt date=\"03 01 2020\" task=DED_SBI_IDLE time=1.0 place=Delft distanceKm=1"
 	echo ""
 
 
