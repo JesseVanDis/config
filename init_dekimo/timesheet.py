@@ -183,9 +183,18 @@ def showAllActivityTypes():
         for x in relevantLines:
             print(x)
 
+def printActivityArgs(day, month, year, activity, duration, location, distance):
+    d = "\033[00m" # https://misc.flogisoft.com/bash/tip_colors_and_formatting
+    h = "\033[92m"
+    print("entering activity '" + h + activity + d + "'" + 
+          " on '" + h + str(day) + "/" + str(month) + "/" + str(year) + d + "'" + 
+          " for '" + h + str(duration) + d + "' days," + 
+          " at '" + h + location + d + "'" + 
+          " with distance set to '" + h + str(distance) + " km" + d + "'" + 
+          "...")
 
-def enterActivity(day, month, year, activity, duration, location):
-    print("entering activity '" + activity + "' on '" + str(day) + "/" + str(month) + "/" + str(year) + "' for '" + str(duration) + "' days")
+def enterActivity(day, month, year, activity, duration, location, distance):
+    printActivityArgs(day, month, year, activity, duration, location, distance)
     dayStr = str(day) if len(str(day)) > 1 else (("0" + str(day))[:2])
     monthStr = str(month) if len(str(month)) > 1 else (("0" + str(month))[:2])
     options = Options()
@@ -245,6 +254,10 @@ def enterActivity(day, month, year, activity, duration, location):
         durationElement = driver.find_element_by_xpath('//*[@id="durationelement"]')
         durationElement.clear()
         durationElement.send_keys(str(duration).replace(",", "."))
+
+        distanceElement = driver.find_element_by_xpath('//*[@id="distanceelement"]')
+        distanceElement.clear()
+        distanceElement.send_keys(str(distance).replace(",", "."))
 
         printIfVerbose("5/5 submitting...")
 
@@ -310,6 +323,7 @@ def main_enterActivity():
     activity = ""
     duration = 1.0
     location = "Delft"
+    distance = 0
     for arg in sys.argv:
         if arg.count("date=") > 0:
             dateStr = arg[arg.find("=")+1:]
@@ -322,8 +336,10 @@ def main_enterActivity():
             duration = float(arg[arg.find("=")+1:])
         if arg.count("location=") > 0:
             location = arg[arg.find("=")+1:]
-
-    enterActivity(date[0], date[1], date[2], activity, duration, location)
+        if arg.count("distance=") > 0:
+            distance = int(arg[arg.find("=")+1:])
+        
+    enterActivity(date[0], date[1], date[2], activity, duration, location, distance)
 
 if sys.argv.count("showThisWeek"):
     main_printActivitiesOfThisWeek()
