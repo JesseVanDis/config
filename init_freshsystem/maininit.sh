@@ -85,8 +85,7 @@ if [ "$readMktServer" == "y" ]; then
 	echo ":: golang mkt server ::"
 	mkdir -p ~/go/src
 	cd ~/go/src
-	echo "usr: Pr..Ve"
-	echo "pass: ww2 rocket paper"
+	echo "needs credentials from xp-dev"
 	git clone https://xp-dev.com/git/game_mkt_server
 	mv game_mkt_server mkt
 	cd ./mkt
