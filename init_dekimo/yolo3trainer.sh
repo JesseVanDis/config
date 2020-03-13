@@ -4,6 +4,14 @@
 
 CurrentWd=""$(pwd)
 
+export PATH=/usr/local/cuda-10.0/bin:/usr/local/cuda-10.0/NsightCompute-1.0:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda
+export CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
+
+self=`basename "$0"`
+run="./${self}"
+
 # TODO: Generate anchor boxes
 
 exitfn () {
@@ -22,15 +30,146 @@ if [ ! -d ${CurrentWd}/data/all ]; then
 		imagesDir=""
 		genDir="_gen"
 	else	
-		cd ${CurrentWd}/data
+		cd "${CurrentWd}"/data || exit
 		imagesDir=$(ls | grep -v _.* | head -1)
-		cd ${CurrentWd}
+		cd "${CurrentWd}" || exit
 		genDir="_${imagesDir}Gen"
 	fi
 else
 	imagesDir="all"
 	genDir="_gen"
 fi
+
+# setup ( install needed packages )
+setup()
+{
+	if [ "$(dpkg-query -W -f='${Status}' imagemagick 2>/dev/null | grep -c 'ok installed')" -eq 0 ];
+	then
+		echo "'imagemagick' required. installing..."
+		sudo apt-get -y install imagemagick;
+	fi
+
+
+	if [ $(dpkg-query -W -f='${Status}' libopencv-dev 2>/dev/null | grep -c "ok installed") -eq 0 ];
+	then
+		echo "'libopencv-dev' required. installing..."
+		sudo apt-get -y install libopencv-dev;
+	fi
+
+#	dpkg -s imagemagick 2>/dev/null >/dev/null || sudo apt-get -y install imagemagick
+}
+
+installCuda()
+{
+  echo " ------------------------------------------------------------------------------------------------ "
+  echo " | installing cuda...                                                                            |"
+#  echo " | Should follow cuda version on 'https://github.com/AlexeyAB/darknet#requirements' closely...   |"
+  echo " | Designed to work on ubuntu 18.04 64bit                                                              |"
+  echo " ------------------------------------------------------------------------------------------------"
+  echo ""
+  mkdir ./cache
+  cd ./cache || exit
+  wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda-repo-ubuntu1804-10-0-local-10.0.130-410.48_1.0-1_amd64
+  mv cuda-repo-ubuntu1804-10-0-local-10.0.130-410.48_1.0-1_amd64 cuda-repo-ubuntu1804-10-0-local-10.0.130-410.48_1.0-1_amd64.deb
+  echo "installing .deb..."
+  sudo dpkg -i cuda-repo-ubuntu1804-10-0-local-10.0.130-410.48_1.0-1_amd64.deb
+  echo "adding cuda key..."
+  sudo apt-key add /var/cuda-repo-10-0-local-10.0.130-410.48/7fa2af80.pub
+  echo "installing..."
+  sudo apt-get update
+  sudo add-apt-repository ppa:graphics-drivers/ppa
+  sudo apt-get install cuda
+
+  # actions from 'https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#post-installation-actions'
+
+  if grep -q "cuda" "${HOME}/.profile"; then
+    echo "Cuda already added to 'PATH'"
+  else
+    echo "Cuda added to 'PATH'"
+    echo "" >> "${HOME}/.profile"
+    echo "# set PATH so it includes user's cuda folder" >> "${HOME}/.profile"
+    echo "PATH=/usr/local/cuda-10.0/bin:/usr/local/cuda-10.0/NsightCompute-1.0:\$PATH" >> "${HOME}/.profile"
+    echo "LD_LIBRARY_PATH=/usr/local/cuda-10.0/lib64:\$LD_LIBRARY_PATH" >> "${HOME}/.profile"
+    echo "CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-10.0" >> "${HOME}/.profile"
+
+    echo "" >> "${HOME}/.profile"
+  fi
+
+  # The NVIDIA Persistence Daemon should be automatically started, this service must always be active. check with
+  #   systemctl status nvidia-persistenced
+  # to start,
+  #   sudo systemctl enable nvidia-persistenced
+  # ( according to some other dude on the internet, this may actually not be needed anyway )
+  #sudo cp /lib/udev/rules.d/40-vm-hotadd.rules /etc/udev/rules.d
+  #sudo sed -i '/SUBSYSTEM=="memory", ACTION=="add"/d' /lib/udev/rules.d/40-vm-hotadd.rules
+
+  # install cuDNN
+  wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/v7.4.1.5/prod/10.0_20181108/cudnn-10.0-linux-x64-v7.4.1.5.tgz
+  tgzFilePath="cudnn-10.0-linux-x64-v7.4.1.5.tgz"
+  if [ ! -f "./${tgzFilePath}" ]; then
+    echo "Failed to download: "
+    echo "  https://developer.nvidia.com/compute/machine-learning/cudnn/secure/v7.4.1.5/prod/10.0_20181108/cudnn-10.0-linux-x64-v7.4.1.5.tgz"
+    echo "Which is to be expected, as you need to log into the website with your nvideo account"
+    echo ""
+    echo "Please download the file from the link, and put it in:"
+    echo "  $(pwd)/${tgzFilePath}"
+    echo ""
+    echo "press 'enter' to continue once you put the file there"
+    read cont
+
+    if [ ! -f "./${tgzFilePath}" ]; then
+      echo "File '$(pwd)/${tgzFilePath}' is still not there.. press enter to check again (3)"
+      read cont
+      if [ ! -f "./${tgzFilePath}" ]; then
+        echo "File '$(pwd)/${tgzFilePath}' is still not there.. press enter to check again (2)"
+        read cont
+        if [ ! -f "./${tgzFilePath}" ]; then
+          echo "File '$(pwd)/${tgzFilePath}' is still not there.. press enter to check again (1)"
+          read cont
+          if [ ! -f "./${tgzFilePath}" ]; then
+            echo "File '$(pwd)/${tgzFilePath}' is still not there.. press enter to check again (0, last try)"
+            read cont
+            if [ ! -f "./${tgzFilePath}" ]; then
+              echo "Failed to install cuDNN"
+            fi
+          fi
+        fi
+      fi
+    fi
+  fi
+
+  # instructions from https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html#installlinux-tar
+  if [ -f "./${tgzFilePath}" ]; then
+    echo "cuDNN instalation package found"
+    tar -xzvf ${tgzFilePath}
+    sudo cp ./cuda/include/cudnn.h /usr/local/cuda/include
+    sudo cp ./cuda/lib64/libcudnn* /usr/local/cuda/lib64
+    sudo chmod a+r /usr/local/cuda/include/cudnn.h /usr/local/cuda/lib64/libcudnn*
+  fi
+
+  # Cuda 10.0 library only works for GCC 7 or *LOWER*
+	if [ "$(dpkg-query -W -f='${Status}' gcc-7 2>/dev/null | grep -c 'ok installed')" -eq 0 ];
+	then
+		echo "'imagemagick' required. installing..."
+		sudo apt-get -y install gcc-7;
+		sudo apt-get -y install g++-7;
+	fi
+
+  if [ ! -f /usr/local/cuda-10.0/bin/g++_b ]; then
+    # https://stackoverflow.com/questions/6622454/cuda-incompatible-with-my-gcc-version
+    # force cuda to use cgg 7.0
+    sudo mv /usr/local/cuda-10.0/bin/g++ /usr/local/cuda-10.0/bin/g++_b
+    sudo mv /usr/local/cuda-10.0/bin/gcc /usr/local/cuda-10.0/bin/gcc_b
+    sudo ln -s /usr/bin/g++-7 /usr/local/cuda/bin/g++
+    sudo ln -s /usr/bin/gcc-7 /usr/local/cuda/bin/gcc
+    sudo ln -s /usr/bin/g++-7 /usr/local/cuda-10/bin/g++
+    sudo ln -s /usr/bin/gcc-7 /usr/local/cuda-10/bin/gcc
+	fi
+
+  cd ../
+  rm -rdf ./cache
+  exit
+}
 
 # find out a name for the collection
 nameCollection=""
@@ -78,6 +217,110 @@ findClasses()
 	fi	
 }
 
+resizeImage()
+{
+  input_image="${1}"
+  input_xml="${2}"
+  output_image="${3}"
+  output_xml="${4}"
+  resize="${5}"
+
+  if [ -z "${input_image}" ] || [ -z "${input_xml}" ] || [ -z "${output_image}" ] || [ -z "${output_xml}" ] || [ -z "${resize}" ]; then
+    echo "usage:"
+    echo "  [input_image, input_xml, output_image, output_xml, new_widthxnew_height]"
+    echo ""
+    echo "example:"
+    echo "  ./data/photo1.png, ./data/photo1.xml, ./data_resized/photo1.png, ./data_resized/photo1.xml, 128x128"
+    echo ""
+    echo "Note:"
+    echo "   This tool depends on ImageMagick. Make sure it is installed"
+  else
+    #create dirs
+    target_image_dir=$(dirname "${output_image}")
+    target_xml_dir=$(dirname "${output_xml}")
+    if [ ! -d "${target_image_dir}" ]; then
+      mkdir "${target_image_dir}"
+    fi
+    if [ ! -d "${target_xml_dir}" ]; then
+      mkdir "${target_xml_dir}"
+    fi
+
+    # change image size
+    convert "${input_image}" -resize "${resize}!" "${output_image}"
+
+    # read sizes
+    original_size=$(identify -format "%wx%h" "${input_image}")
+    original_width=$(echo "$original_size" | tr "x" "\n" | head -1)
+    original_height=$(echo "$original_size" | tr "x" "\n" | tail -1)
+    new_width=$(echo "$resize" | tr "x" "\n" | head -1)
+    new_height=$(echo "$resize" | tr "x" "\n" | tail -1)
+    width_multiplier=$(echo "scale = 10; ${new_width}/${original_width}" | bc)
+    height_multiplier=$(echo "scale = 10; ${new_height}/${original_height}" | bc)
+
+    output_image_obsolute_path=$(realpath "${output_image}")
+
+    #update voc xml
+    echo "" > "${output_xml}"
+    while IFS="" read -r line || [ -n "$line" ]; do
+
+      modified_line="${line}"
+
+      from="<width>${original_width}</width>";    to="<width>${new_width}</width>";   modified_line="${modified_line/$from/$to}"
+      from="<height>${original_height}</height>"; to="<height>${new_height}</height>"; modified_line="${modified_line/$from/$to}"
+
+      if [[ "${modified_line}" == *"<folder>"* ]]; then
+        original_folder=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_folder=$(echo "${output_image_obsolute_path}" | rev | cut -f2 -d"/" | rev)
+        from="<folder>${original_folder}</folder>";    to="<folder>${new_folder}</folder>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      if [[ "${modified_line}" == *"<filename>"* ]]; then
+        original_filename=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_filename=$(echo "${output_image_obsolute_path}" | rev | cut -f1 -d"/" | rev)
+        from="<filename>${original_filename}</filename>";    to="<filename>${new_filename}</filename>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      if [[ "${modified_line}" == *"<path>"* ]]; then
+        original_path=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_path="${output_image_obsolute_path}"
+        from="<path>${original_path}</path>";    to="<path>${new_path}</path>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+
+
+      if [[ "${modified_line}" == *"<xmin>"* ]]; then
+        original_number=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_number=$(echo "scale = 10; ${width_multiplier}*${original_number}" | bc)
+        new_number_rounded=$(echo "$new_number" | awk '{print int($1+0.5)}')
+        from="<xmin>${original_number}</xmin>";    to="<xmin>${new_number_rounded}</xmin>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      if [[ "${modified_line}" == *"<ymin>"* ]]; then
+        original_number=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_number=$(echo "scale = 10; ${height_multiplier}*${original_number}" | bc)
+        new_number_rounded=$(echo "$new_number" | awk '{print int($1+0.5)}')
+        from="<ymin>${original_number}</ymin>";    to="<ymin>${new_number_rounded}</ymin>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      if [[ "${modified_line}" == *"<xmax>"* ]]; then
+        original_number=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_number=$(echo "scale = 10; ${width_multiplier}*${original_number}" | bc)
+        new_number_rounded=$(echo "$new_number" | awk '{print int($1+0.5)}')
+        from="<xmax>${original_number}</xmax>";    to="<xmax>${new_number_rounded}</xmax>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      if [[ "${modified_line}" == *"<ymax>"* ]]; then
+        original_number=$(echo "${modified_line}" | cut -d'>' -f2- | cut -f1 -d"<")
+        new_number=$(echo "scale = 10; ${height_multiplier}*${original_number}" | bc)
+        new_number_rounded=$(echo "$new_number" | awk '{print int($1+0.5)}')
+        from="<ymax>${original_number}</ymax>";    to="<ymax>${new_number_rounded}</ymax>";   modified_line="${modified_line/$from/$to}"
+      fi
+
+      echo "${modified_line}" >> "${output_xml}"
+    done < "${input_xml}"
+
+  fi
+}
 
 printHelp=""
 if [ -z "${1}" ]; then
@@ -104,7 +347,8 @@ elif [ ${1} == "p" ]; then
 
 		read cont
 	fi
-
+	
+	setup
 	readNameCollection
 
 	echo "clearing destination folders..."
@@ -120,7 +364,7 @@ elif [ ${1} == "p" ]; then
 	numTrainingImages=0
 	numEvalImages=0
 	echo "copying images..."
-	cd ./data/${imagesDir}
+	cd ./data/${imagesDir} || exit
 
 	numTotalImages=0
 	imageIndex=0
@@ -161,11 +405,73 @@ elif [ ${1} == "p" ]; then
 	echo ""
 	echo "done!"
 
+elif [ ${1} == "pd" ]; then
+ 	setup
+	readNameCollection
+
+  if [ -d "${CurrentWd}/data/all" ]; then
+    echo "the folder './data/all' already exists... remove this folder and try again to get the fresh sample data"
+  else
+
+    mkdir -p "${CurrentWd}/data/temp_git_pull_folder"
+    cd "${CurrentWd}/data/temp_git_pull_folder" || exit
+    git clone "https://github.com/JesseVanDis/ComputerVisionKickoff.git"
+    mv "${CurrentWd}/data/temp_git_pull_folder/ComputerVisionKickoff/data" "${CurrentWd}/data/all"
+    rm -rdf "${CurrentWd}/data/temp_git_pull_folder"
+    echo "Done! sample images downloaded."
+  fi
+
+elif [ ${1} == "ts" ]; then
+	setup
+	readNameCollection
+
+	scale="${2}"
+  folder_scale_name=$(echo "${scale}" | tr -d .)
+  target_folder="${CurrentWd}/data/${imagesDir}_resized_${folder_scale_name}"
+
+	numImages=0
+  for f in ${CurrentWd}/data/${imagesDir}/*.xml; do
+    numImages=$((numImages+1))
+  done;
+
+	imageIndex=0
+  for f in ${CurrentWd}/data/${imagesDir}/*.xml; do
+    filenameWithoutExtention=$(echo "${f}" | cut -f1 -d".")
+    imageExtention="jpg"
+    if [ ! -f "${filenameWithoutExtention}.${imageExtention}" ]; then
+      imageExtention="png"
+    fi
+    if [ ! -f "${filenameWithoutExtention}.${imageExtention}" ]; then
+      imageExtention="jpeg"
+    fi
+    if [ ! -f "${filenameWithoutExtention}.${imageExtention}" ]; then
+      echo "failed to find image '${filenameWithoutExtention}'.jpg|jpeg|png."
+      continue
+    fi
+    imagepath="${filenameWithoutExtention}.${imageExtention}"
+    xmlpath="${f}"
+    imagefilename=$(basename "${imagepath}")
+    xmlfilename=$(basename "${xmlpath}")
+
+    original_size=$(identify -format "%wx%h" "${imagepath}")
+    original_width=$(echo "$original_size" | tr "x" "\n" | head -1)
+    original_height=$(echo "$original_size" | tr "x" "\n" | tail -1)
+    new_width=$(echo "scale = 10; ${original_width}*${scale}" | bc)
+    new_height=$(echo "scale = 10; ${original_height}*${scale}" | bc)
+    new_width_rounded=$(echo "$new_width" | awk '{print int($1+0.5)}')
+    new_height_rounded=$(echo "$new_height" | awk '{print int($1+0.5)}')
+
+    newImageSize="${new_width_rounded}x${new_height_rounded}"
+    resizeImage "${imagepath}" "${xmlpath}" "${target_folder}/${imagefilename}" "${target_folder}/${xmlfilename}" "${newImageSize}"
+    imageIndex=$((imageIndex+1))
+    echo "resized ${imageIndex}/${numImages} to '${newImageSize}'"
+  done;
+  echo "done!"
 
 elif [ "${1}" == "ps" ]; then
 	# init
 	if [ ! -d ./data/${genDir}/train_annot_folder ]; then
-		./yolo3trainer.sh -p
+		$run p
 	fi
 	if [ ! -d ./data/${genDir}/train_annot_folder ]; then
 		exit
@@ -175,19 +481,19 @@ elif [ "${1}" == "ps" ]; then
 		mkdir -p ./keras-yolo3/${genDir}/backup
 		cp ./keras-yolo3/config.json ./keras-yolo3/${genDir}/backup/originalConfig.json
 	fi
-	cd ./keras-yolo3
+	cd ./keras-yolo3 || exit
 
 	if [ ! -d ./${genDir}/tools/gdown ]; then
 		echo "downloading 'gdown' for downloading google drive files..."
 		mkdir -p ./${genDir}/tools/gdown
-		cd ./${genDir}/tools/gdown
+		cd "./${genDir}/tools/gdown" || exit
 		git clone https://github.com/circulosmeos/gdown.pl.git
 		cd ../../../
 	fi
 
 	if [ ! -f ./${genDir}/backendweights/backend.h5 ]; then
 		mkdir -p ./${genDir}/backendweights
-		cd ./${genDir}/tools/gdown/gdown.pl
+		cd "./${genDir}/tools/gdown/gdown.pl" || exit
 		echo "Downloading pretrained weights 'backend.h5'..."
 		./gdown.pl 'https://drive.google.com/open?id=1o_PM_zB6FxJRdLpEx8lEAhL29IMe1KzI' 'backend.h5'
 		mv ./backend.h5 ../../../backendweights/backend.h5
@@ -226,15 +532,15 @@ elif [ "${1}" == "ps" ]; then
 
 elif [ "${1}" == "pl" ]; then
 	if [ ! -d ./keras-yolo3 ]; then
-		echo "first run 'yolo3trainer.sh -l' at east once. ( you can terminate right after if you like )"
+		echo "first run '${self} -l' at east once. ( you can terminate right after if you like )"
 		exit
 	fi
-	cd ./keras-yolo3
+	cd ./keras-yolo3 || exit
 	python3 train.py -c config.json
 
 elif [ "${1}" == "pr" ]; then
 
-	cd ./keras-yolo3
+	cd ./keras-yolo3 || exit
 	for f in *.h5; do
 		rm ${f}
 		echo "'${f}' removed"
@@ -244,10 +550,10 @@ elif [ "${1}" == "pr" ]; then
 
 elif [ "${1}" == "pa" ]; then
 	if [ ! -d ./keras-yolo3 ]; then
-		echo "first run 'yolo3trainer.sh -l' at east once. ( you can terminate right after if you like )"
+		echo "first run '${self} -l' at east once. ( you can terminate right after if you like )"
 		exit
 	fi
-	cd ./keras-yolo3
+	cd ./keras-yolo3 || exit
 	anchorsStr=$(cat ./config.json | grep "\"anchors\":" | awk -F '[' '{print $2}' | rev | cut -c3- | rev) #width, height,   width, height ect.
 	maxInputSize=$(cat ./config.json | grep max_input_size | awk -F ':' '{print $2}' | xargs | rev | cut -c2- | rev)
 
@@ -288,6 +594,7 @@ elif [ "${1}" == "pa" ]; then
 
 
 elif [ "${1}" == "cs" ]; then
+	setup
 
 	trainingType="${2}"
 	if [ -z "${trainingType}" ]; then
@@ -315,27 +622,108 @@ elif [ "${1}" == "cs" ]; then
 
 	# init
 	if [ ! -d ./data/${genDir}/train_annot_folder ]; then
-		./yolo3trainer.sh -p
+		$run p
 	fi
 	if [ ! -d ./data/${genDir}/train_annot_folder ]; then
 		exit
 	fi
 	if [ ! -d ./darknet ]; then
 		#git clone https://github.com/pjreddie/darknet
-		git clone https://github.com/AlexeyAB/darknet
-		cd ./darknet
-		echo "Enabling OpenMP..."
-		sed -i '/OPENMP[=]0/c\OPENMP=1' ./Makefile
-		echo "Enabling OpenCV..."
-		sed -i '/OPENCV[=]0/c\OPENCV=1' ./Makefile
-		echo "Enabling AVX...  ( turn off if this creates errors... )"
-		sed -i '/AVX[=]0/c\AVX=1' ./Makefile
+		#cd ./darknet || exit
 
-		echo "Edit the yolo3trainer to enable CUDA as well when needed" # or detect that somehow
-		make
-		cd ../
+		git clone https://github.com/AlexeyAB/darknet
+		cd ./darknet || exit
+		git checkout darknet_yolo_v3_optimal   # when you change this, you may have to change the cuda versions as well
+
+###########    Uncomment the below to build with just 'make' 	#########################################
+#		echo "Enabling OpenMP..."
+#		sed -i '/OPENMP[=]0/c\OPENMP=1' ./Makefile
+#		echo "Enabling OpenCV..."
+#		sed -i '/OPENCV[=]0/c\OPENCV=1' ./Makefile
+#		echo "Enabling AVX...  ( turn off if this creates errors... )"
+#		sed -i '/AVX[=]0/c\AVX=1' ./Makefile
+#
+#		echo "Edit the yolo3trainer to enable CUDA as well when needed" # or detect that somehow
+#		make
+#######################################################################################################
+
+###########    Uncomment the below to build with CMake 	###############################################
+
+    hasCuda=1
+    mkdir ./temp
+    cd ./temp || exit
+    cudaNotFoundLine=$(cmake .. | grep "CUDA.*NOT")
+    cd ../
+    rm -drf ./temp
+
+    if [[ "$cudaNotFoundLine" == *"CUDA"* ]]; then
+      hasCuda=0
+    fi
+
+    if [ $hasCuda == 0 ]; then
+      echo "Cuda not found."
+      echo "Do you want to install it? (y/n/c)"
+      echo "yes, no, cancel"
+
+      read yOrN
+			if [ "${yOrN}" == "c" ]; then
+          echo "Setup cancelled"
+          cd ../
+          rm -rdf ./darknet
+          exit
+      fi
+			if [ "${yOrN}" == "y" ]; then
+			  installCuda
+
+  			# check if cuda has really been installed
+        echo "checking if cuda has been installed for darknet..."
+        hasCuda=1
+        mkdir ./temp
+        cd ./temp || exit
+        cudaNotFoundLine=$(cmake .. | grep "CUDA.*NOT")
+        cd ../
+        rm -drf ./temp
+        if [[ "$cudaNotFoundLine" == *"CUDA"* ]]; then
+          hasCuda=0
+        fi
+
+        if [ $hasCuda == 0 ]; then
+          echo "Still cannot find CUDA.. Reverting progress and exitting..."
+          cd ../
+          rm -rdf ./darknet
+          exit
+        fi
+        echo "Cuda installed"
+
+			fi
+    fi
+
+    mkdir build-release
+    cd build-release || exit
+    cmake ..
+    make
+
+    for filename in ./*; do
+      if [[ "${filename}" == *".txt" ]]; then
+        continue
+      fi
+      if [[ "${filename}" == *".cmake" ]]; then
+        continue
+      fi
+      if [[ "${filename}" == *"CMake"* ]]; then
+        continue
+      fi
+      if [[ "${filename}" == *"Makefile"* ]]; then
+        continue
+      fi
+      cp ${filename} ../
+    done
+
+#######################################################################################################
+
+		cd ../../
 	fi
-	cd ./darknet
+	cd ./darknet || exit
 	
 	if [ -d ./gen/voc_label ]; then
 		if [ ! -d ./gen/pretrained ]; then
@@ -347,7 +735,7 @@ elif [ "${1}" == "cs" ]; then
 		rm -rdf ./gen/voc_label
 	fi
 	mkdir -p ./gen/voc_label
-	cd ./gen/voc_label
+	cd ./gen/voc_label || exit
 
 	readNameCollection
 	findClasses
@@ -602,7 +990,7 @@ elif [ "${1}" == "cs" ]; then
 	fi
 
 	# setup pre-trained weights
-	cd ${CurrentWd}/darknet/gen/voc_label/
+	cd "${CurrentWd}/darknet/gen/voc_label/" || exit
 	PreTrainedDir=${CurrentWd}/darknet/gen/voc_label/pretrained
 	if [ ! -f ./pretrained/${pretrainedWeightsFile} ]; then
 		if [ -f ../pretrained/${pretrainedWeightsFile} ]; then
@@ -612,32 +1000,32 @@ elif [ "${1}" == "cs" ]; then
 		else
 			echo "Downloading pretrained convolutional weights..."
 			mkdir ./pretrained
-			cd ./pretrained
+			cd ./pretrained || exit
 			wget https://pjreddie.com/media/files/${pretrainedWeightsFile}
 			cd ../
 		fi
 		if [[ "${pretrainedWeightsFile}" == *".weights" ]]; then
-			cd ${CurrentWd}/darknet
+			cd "${CurrentWd}/darknet" || exit
 			echo "extracting pretrained layer..."
 			./darknet partial ${CurrentWd}/darknet/cfg/${sourceTrainingTypeConfigPretrained} ${PreTrainedDir}/${pretrainedWeightsFile} ${PreTrainedDir}/${pretrainedWeightsLayer} ${pretrainedWeightsLayerIndex}
-			cd ${CurrentWd}/darknet/gen/voc_label/
+			cd "${CurrentWd}/darknet/gen/voc_label/" || exit
 		fi
 	fi
 
 	# resize
-	cd ${CurrentWd}/darknet/gen/voc_label/
+	cd "${CurrentWd}/darknet/gen/voc_label/" || exit
 	targetImageWidth=$(cat ${trainingConfigPath} | grep width[=] | head -1 | awk -F '=' '{print $2}')
 	targetImageHeight=$(cat ${trainingConfigPath} | grep height[=] | head -1 | awk -F '=' '{print $2}')
 	
 
 	echo "resizing images according to learning conf. (${targetImageWidth}x${targetImageHeight}) ignoring aspect ratio"
-	cd ${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/train_image_folder	
+	cd "${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/train_image_folder" || exit
 	numTrainingImages=0
 	currentNumTrainingImage=0
 	for f in *.jpg ; do
 		numTrainingImages=$((numTrainingImages+1))
 	done
-	cd ${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/valid_image_folder
+	cd "${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/valid_image_folder" || exit
 	numValidationImages=0
 	currentNumValidationImage=0
 	for f in *.jpg ; do
@@ -647,14 +1035,14 @@ elif [ "${1}" == "cs" ]; then
 
 	numTotalImagesToResize=$((numTrainingImages+numValidationImages))
 	totalImageIndex=0
-	cd ${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/train_image_folder	
+	cd "${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/train_image_folder" || exit
 	for f in *.jpg ; do
 		mogrify -resize ${targetImageWidth}x${targetImageHeight}\! ${f}
 		printf "\r(${totalImageIndex}/${numTotalImagesToResize}) training images: ${currentNumTrainingImage}, validation images: ${currentNumValidationImage}"
 		totalImageIndex=$((totalImageIndex+1))
 		currentNumTrainingImage=$((currentNumTrainingImage+1))
 	done;
-	cd ${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/valid_image_folder
+	cd "${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/valid_image_folder" || exit
 	for f in *.jpg ; do
 		mogrify -resize ${targetImageWidth}x${targetImageHeight}\! ${f}
 		printf "\r(${totalImageIndex}/${numTotalImagesToResize}) training images: ${currentNumTrainingImage}, validation images: ${currentNumValidationImage}"
@@ -667,18 +1055,18 @@ elif [ "${1}" == "cs" ]; then
 
 elif [ "${1}" == "cv" ]; then
 	if [ ! -d ./darknet/gen/voc_label ]; then
-		echo "run 'yolo3trainer.sh -cs' first."
+		echo "run '${self} -cs' first."
 		exit
 	fi
 
-	cd ./darknet
+	cd ./darknet || exit
 	if [ ! -d ./Yolo_mark ]; then
 		mkdir ./Yolo_mark
-		cd ./Yolo_mark
+		cd ./Yolo_mark || exit
 		git clone https://github.com/AlexeyAB/Yolo_mark.git
-		cd ./Yolo_mark
+		cd ./Yolo_mark || exit
 		mkdir ./build
-		cd ./build
+		cd ./build || exit
 		cmake ../
 		make	
 		cd ../../../
@@ -694,12 +1082,12 @@ elif [ "${1}" == "cv" ]; then
 elif [ "${1}" == "cl" ]; then
 
 	if [ ! -d ./darknet/gen/voc_label ]; then
-		echo "run 'yolo3trainer.sh -cs' first."
+		echo "run '${self} -cs' first."
 		exit
 	fi
 
 	echo "starting to learn..."
-	cd ./darknet
+	cd ./darknet || exit
 
 	readNameCollection
 
@@ -726,9 +1114,12 @@ elif [ "${1}" == "cl" ]; then
 	if [ ! -d ./workingDir ]; then
 		mkdir ./workingDir
 	fi
-	cd ./workingDir # attempt to store the 'aug_...jpg' files in working dir but failed... leaving it here anyway 
+	cd ./workingDir || exit # attempt to store the 'aug_...jpg' files in working dir but failed... leaving it here anyway
 	#../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${pretrainedWeightsPath} -dont_show -map -show_imgs
-	../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${pretrainedWeightsPath} -map
+	echo "starting with: "
+	echo "  ../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${pretrainedWeightsPath} -map"
+	../darknet detector train "${inputConfigPath}" "${trainingConfigPath}" "${pretrainedWeightsPath}" -map
+	echo "training ended"
 else
 	printHelp="true"
 fi
@@ -736,17 +1127,19 @@ fi
 if [ "${printHelp}" == "true" ]; then
 	echo ""
 	echo "usage:"
-	echo "  'yolo3trainer.sh p'   =  load custom images"
+	echo "  '${self} p'   =  load custom images"
+	echo "  '${self} pd'  =  download sample data"
 	echo ""
-	echo "  'yolo3trainer.sh cs yolov3'       =  [C++ Darknet] configure learning config - yolov3"
-	echo "  'yolo3trainer.sh cs yolov3_tiny'  =  [C++ Darknet] configure learning config - yolov3-tiny"
-	echo "  'yolo3trainer.sh cv'              =  [C++ Darknet] verify labels"
-	echo "  'yolo3trainer.sh cl'              =  [C++ Darknet] start learning"
+	echo "  '${self} cs yolov3'       =  [C++ Darknet] configure learning config - yolov3"
+	echo "  '${self} cs yolov3_tiny'  =  [C++ Darknet] configure learning config - yolov3-tiny"
+	echo "  '${self} cv'              =  [C++ Darknet] verify labels"
+	echo "  '${self} cl'              =  [C++ Darknet] start learning"
 	echo ""
-	#echo "  'yolo3trainer.sh -ps'  =  [Python]      auto-configure learning config"
-	#echo "  'yolo3trainer.sh -pl'  =  [Python]      start learning"
-	#echo "  'yolo3trainer.sh -pa'  =  [Python]      display anchors of current config"
-	#echo "  'yolo3trainer.sh -pr'  =  [Python]      reset state"
+	echo "  '${self} ts [scale]'      =  [Tool] resize images (eg: ts 0.3)"
+	#echo "  '${self} -ps'  =  [Python]      auto-configure learning config"
+	#echo "  '${self} -pl'  =  [Python]      start learning"
+	#echo "  '${self} -pa'  =  [Python]      display anchors of current config"
+	#echo "  '${self} -pr'  =  [Python]      reset state"
 	echo ""
 fi
 
