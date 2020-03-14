@@ -409,6 +409,10 @@ elif [ ${1} == "pd" ]; then
  	setup
 	readNameCollection
 
+  # a lot of data here:
+  #http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar
+
+
   if [ -d "${CurrentWd}/data/all" ]; then
     echo "the folder './data/all' already exists... remove this folder and try again to get the fresh sample data"
   else
@@ -1053,7 +1057,7 @@ elif [ "${1}" == "cs" ]; then
 	
 	echo "done!"
 
-elif [ "${1}" == "cv" ]; then
+elif [ "${1}" == "tv" ]; then
 	if [ ! -d ./darknet/gen/voc_label ]; then
 		echo "run '${self} -cs' first."
 		exit
@@ -1118,8 +1122,111 @@ elif [ "${1}" == "cl" ]; then
 	#../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${pretrainedWeightsPath} -dont_show -map -show_imgs
 	echo "starting with: "
 	echo "  ../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${pretrainedWeightsPath} -map"
-	../darknet detector train "${inputConfigPath}" "${trainingConfigPath}" "${pretrainedWeightsPath}" -map
+	result=$(../darknet detector train "${inputConfigPath}" "${trainingConfigPath}" "${pretrainedWeightsPath}" -map)
 	echo "training ended"
+  echo "${result}" > "./result.txt"
+	echo "training result: '$(pwd)/result.txt'"
+
+
+elif [ "${1}" == "clc" ]; then
+
+ 	readNameCollection
+
+	cd ./darknet || exit
+
+	inputConfigPath="${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/cfg/input.data"
+	pretrainedLayersNamePath="${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/cfg/pretrainedLayer.txt"
+	pretrainedWeightsLayer=$(cat ${pretrainedLayersNamePath} | head -1)
+	trainingConfigBasePath="${CurrentWd}"
+	trainingConfigFileName=$(ls "${CurrentWd}" | grep [.]cfg)
+	trainingConfigPath="${trainingConfigBasePath}/${trainingConfigFileName}"
+
+  if [ ! -f "${inputConfigPath}" ]; then
+    echo "No backups found in '${inputConfigPath}'"
+    exit
+  fi
+
+  backupFolder=$(cat "${inputConfigPath}" | grep "backup =" | cut -f2 -d"=" | xargs)
+  backupWeightsFile=$(ls "${backupFolder}" -C --width=1 | grep "_last.weights")
+  weightsFilePath="${backupFolder}/${backupWeightsFile}"
+
+  echo "${weightsFilePath}"
+
+  if [ ! -f "${weightsFilePath}" ]; then
+    echo "No weights backup found."
+    exit
+  fi
+
+ 	echo "copying previous results to a save location..."
+	cd ./workingDir || exit
+
+	workingDirBackupFolder="$(date +'%s') $(date)"
+	mkdir "./${workingDirBackupFolder}"
+	cp ./* "./${workingDirBackupFolder}"/ 2>/dev/null
+  cp -r "${backupFolder}" "${workingDirBackupFolder}"
+
+ 	echo "starting to learn..."
+	echo "starting with: "
+	echo "  ../darknet detector train ${inputConfigPath} ${trainingConfigPath} ${weightsFilePath} -map"
+	result=$(../darknet detector train "${inputConfigPath}" "${trainingConfigPath}" "${weightsFilePath}" -map)
+	echo "training ended"
+	echo "${result}" > "./result.txt"
+	echo "training result: '$(pwd)/result.txt'"
+
+elif [ "${1}" == "cr" ]; then
+ 	readNameCollection
+  if [ -d "./trained_weights/${nameCollection}" ]; then
+    echo "'./trained_weights/${nameCollection}' already exists... do you want to clear it?"
+
+    read yOrN
+    if [ "${yOrN}" == "y" ]; then
+      rm -rdf "./trained_weights/${nameCollection}"
+    else
+      echo "the folder needs to be clearen in order to save the weights"
+      exit
+    fi
+  fi
+  mkdir -p "./trained_weights/${nameCollection}"
+
+	inputConfigPath="${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/cfg/input.data"
+	trainingConfigBasePath="${CurrentWd}"
+
+  backupFolder=$(cat "${inputConfigPath}" | grep "backup =" | cut -f2 -d"=" | xargs)
+  bestWeightsFile=$(ls "${backupFolder}" -C --width=1 | grep "_best.weights")
+  weightsFilePath="${backupFolder}/${bestWeightsFile}"
+
+  cp "${weightsFilePath}" "./trained_weights/${nameCollection}"
+
+  echo "weights saved to 'trained_weights'"
+
+elif [ "${1}" == "ri" ]; then
+ 	readNameCollection
+
+  imagepath="${2}"
+
+  absoluteimagepath=$(realpath $imagepath)
+
+  echo "testing '${absoluteimagepath}'..."
+
+	cd ./darknet || exit
+
+	inputConfigPath="${CurrentWd}/darknet/gen/voc_label/gen/${nameCollection}/cfg/input.data"
+
+	trainingConfigBasePath="${CurrentWd}"
+  trainingConfigFileName=$(ls "${CurrentWd}" | grep [.]cfg)
+	trainingConfigPath="${trainingConfigBasePath}/${trainingConfigFileName}"
+
+	weightsFileName=$(ls "${CurrentWd}/trained_weights/${nameCollection}" -C --width=1 | grep ".weights")
+	weightsFilePath="${CurrentWd}/trained_weights/${nameCollection}/${weightsFileName}"
+
+
+	echo "starting with: "
+	echo "  ./darknet detector test \"${inputConfigPath}\" \"${trainingConfigPath}\" \"${weightsFilePath}\" \"${absoluteimagepath}\" -i 0 -thresh 0.25"
+
+	result=$(./darknet detector test "${inputConfigPath}" "${trainingConfigPath}" "${weightsFilePath}" "${absoluteimagepath}" -i 0 -thresh 0.25)
+
+#  darknet.exe detector test cfg/coco.data cfg/yolov3.cfg yolov3.weights -thresh 0.25
+
 else
 	printHelp="true"
 fi
@@ -1127,15 +1234,19 @@ fi
 if [ "${printHelp}" == "true" ]; then
 	echo ""
 	echo "usage:"
-	echo "  '${self} p'   =  load custom images"
-	echo "  '${self} pd'  =  download sample data"
+	echo "  'p'   =  load custom images"
+	echo "  'pd'  =  download sample data"
 	echo ""
-	echo "  '${self} cs yolov3'       =  [C++ Darknet] configure learning config - yolov3"
-	echo "  '${self} cs yolov3_tiny'  =  [C++ Darknet] configure learning config - yolov3-tiny"
-	echo "  '${self} cv'              =  [C++ Darknet] verify labels"
-	echo "  '${self} cl'              =  [C++ Darknet] start learning"
+	echo "  'cs yolov3'       =  [C++ Darknet] configure learning config - yolov3"
+	echo "  'cs yolov3_tiny'  =  [C++ Darknet] configure learning config - yolov3-tiny"
+	echo "  'cl'              =  [C++ Darknet] (re)start learning"
+	echo "  'clc'             =  [C++ Darknet] continue learning from last checkpoint"
+	echo "  'cr'              =  [C++ Darknet] save best weights"
 	echo ""
-	echo "  '${self} ts [scale]'      =  [Tool] resize images (eg: ts 0.3)"
+	echo "  'ri' [imagepath]  =  [C++ Darknet] test image"
+	echo ""
+	echo "  'tv'              =  [Tool] verify labels"
+	echo "  'ts [scale]'      =  [Tool] resize images (eg: ts 0.3)"
 	#echo "  '${self} -ps'  =  [Python]      auto-configure learning config"
 	#echo "  '${self} -pl'  =  [Python]      start learning"
 	#echo "  '${self} -pa'  =  [Python]      display anchors of current config"
