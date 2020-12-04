@@ -9,7 +9,7 @@
 
 
 checkPreventStandby=0
-checkGraphicsDriver=0
+checkGraphicsDriver=1
 checkKCB=1
 checkXMacro=0
 checkMKTServer=0
