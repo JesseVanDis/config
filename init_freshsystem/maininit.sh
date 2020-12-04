@@ -50,11 +50,11 @@ if [ ! -f "${checkCuda_10_1}" ]; then
 	echo ""
 fi
 
-if [ "${checkCuda_10_1}" != "$Disabled" ]; then
-	echo "Verify CUDA Instalation? y/n"
-	read readVerifyCuda
-	echo ""
-fi
+#if [ "${checkCuda_10_1}" != "$Disabled" ]; then
+#	echo "Verify CUDA Instalation? y/n"
+#	read readVerifyCuda
+#	echo ""
+#fi
 
 if [ ! -f "${checkKCB}" ]; then
 	echo "install KCB Keyboard driver? y/n"
@@ -113,17 +113,17 @@ fi
 if [ "$readInstallCuda_10_1" == "y" ]; then
 	#cuda 10.1
 	echo ":: Cuda 10.1 ::"
-	sudo apt -y install nvidia-cuda-toolkit build-essential gcc-8 g++-8 cuda-samples-7-0
+	sudo apt -y install nvidia-cuda-toolkit build-essential gcc-8 g++-8
 	nvcc --version
 	sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8
 	sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8
-
-#	echo "1" > "${checkCuda_10_1}"
+	echo "1" > "${checkCuda_10_1}"
 fi
 
 if [ "$readVerifyCuda" == "y" ]; then
 	echo ":: Verify Cuda installation ::"
 	echo "Compiling and running test source code ..."
+	sudo apt-get install cuda-samples-7-0 -y
 	cd /usr/local/cuda-7.0/samples
 	make
 	./bin/ppc64le/linux/release/deviceQuery
