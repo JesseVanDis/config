@@ -7,32 +7,57 @@
 #      ( read last part )
 
 
-echo "Prevent system going to standby? y/n"
-read readPreventStandby
-#echo " - '${readPreventStandby}'"
-echo ""
 
-echo "install graphics driver? y/n"
-read readInstallGraphicsDriver
-#echo " - '${readInstallGraphicsDriver}'"
-echo ""
+checkPreventStandby=0
+checkGraphicsDriver=0
+checkKCB=1
+checkXMacro=0
+checkMKTServer=0
+checkGit=1
 
-echo "install KCB Keyboard driver? y/n"
-read readKCB
-#echo " - '${readKCB}'"
-echo ""
+# ----------------
+# CHECK
+# ----------------
 
-echo "Install XMacro? y/n"
-read readXMacro
-#echo " - '${readXMacro}'"
-echo ""
+if [ $checkPreventStandby == 1 ]; then
+	echo "Prevent system going to standby? y/n"
+	read readPreventStandby
+	echo ""
+fi
 
-echo "Install golang mkt server? y/n"
-read readMktServer
-#echo " - '${readMktServer}'"
-echo ""
+if [ $checkGraphicsDriver == 1 ]; then
+	echo "install graphics driver? y/n"
+	read readInstallGraphicsDriver
+	echo ""
+fi
 
+if [ $checkKCB == 1 ]; then
+	echo "install KCB Keyboard driver? y/n"
+	read readKCB
+	echo ""
+fi
 
+if [ $checkXMacro == 1 ]; then
+	echo "Install XMacro? y/n"
+	read readXMacro
+	echo ""
+fi
+
+if [ $checkMKTServer == 1 ]; then
+	echo "Install golang mkt server? y/n"
+	read readMktServer
+	echo ""
+fi
+
+if [ $checkGit == 1 ]; then
+	echo "setup git? y/n"
+	read readSetupGit
+	echo ""
+fi
+
+# ----------------
+# INSTALL
+# ----------------
 
 if [ "$readPreventStandby" == "y" ]; then
 	#Prevent standby
@@ -91,6 +116,14 @@ if [ "$readMktServer" == "y" ]; then
 	cd ./mkt
 	./commands.sh s
 	echo ""
+fi
+
+if [ "$readSetupGit" == "y" ]; then
+	# setup_git
+	sudo apt-get -y install git
+	git config --global credential.helper store # save username and password when pulling
+	git config --global user.email "pri_jesse@hotmail.com"
+	git config --global user.name "Jesse van Dis"
 fi
 
 
